@@ -35,11 +35,17 @@ async def test_send_bulk_email():
         result = await send_bulk_email("token123", ["a@example.com", "b@example.com"], "Subject", "Body")
         assert result["count"] == 3
 
-def test_send_sms():
-    with patch('src.notifications.sms.requests.post') as mock_post:
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"id": "sms_123", "status": "sent"}
-        mock_response.raise_for_status.return_value = None
-        mock_post.return_value = mock_response
-        result = send_sms("+123****7890", "Your order is ready!")
+@pytest.mark.asyncio
+async def test_send_sms():
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"id": "sms_123", "status": "sent"}
+    mock_response.raise_for_status = MagicMock()
+
+    mock_client = AsyncMock()
+    mock_client.post.return_value = mock_response
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+
+    with patch('src.notifications.sms.httpx.AsyncClient', return_value=mock_client):
+        result = await send_sms("+123****7890", "Your order is ready!")
         assert result["status"] == "sent"
